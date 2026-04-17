@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QBO OAuth Callback</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 20px; color: #1a1a1a; line-height: 1.5; }
+  h1 { font-size: 1.5rem; }
+  .row { background: #f4f6f8; border: 1px solid #d1d5db; border-radius: 6px; padding: 12px 16px; margin: 12px 0; }
+  .label { font-size: 0.8rem; color: #6b7280; text-transform: uppercase; letter-spacing: 0.04em; }
+  .val { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 0.95rem; word-break: break-all; margin-top: 4px; }
+  button { background: #0f172a; color: #fff; border: 0; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.85rem; margin-top: 8px; }
+  button:hover { background: #334155; }
+  .error { background: #fef2f2; border-color: #fca5a5; color: #991b1b; }
+  .cmd { background: #0f172a; color: #f3f4f6; padding: 14px 16px; border-radius: 6px; font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 0.85rem; white-space: pre-wrap; word-break: break-all; margin-top: 16px; }
+  .note { color: #6b7280; font-size: 0.9rem; margin-top: 24px; }
+</style>
+</head>
+<body>
+
+<h1>QuickBooks connected</h1>
+<p id="status">Parsing response from Intuit...</p>
+
+<div id="fields"></div>
+
+<p class="note">Copy the command below and run it in your terminal. The authorization code expires in ~10 minutes, so do this promptly.</p>
+
+<div class="cmd" id="cmd">&nbsp;</div>
+
+<p class="note">Or copy each value individually above and pass them manually to <code>qbo_exchange.py</code>.</p>
+
+<script>
+(function () {
+  var params = new URLSearchParams(window.location.search);
+  var code = params.get("code");
+  var realmId = params.get("realmId");
+  var state = params.get("state");
+  var error = params.get("error");
+  var errorDescription = params.get("error_description");
+
+  var fields = document.getElementById("fields");
+  var status = document.getElementById("status");
+  var cmd = document.getElementById("cmd");
+
+  function renderRow(label, value, isError) {
+    var wrap = document.createElement("div");
+    wrap.className = "row" + (isError ? " error" : "");
+    var l = document.createElement("div"); l.className = "label"; l.textContent = label;
+    var v = document.createElement("div"); v.className = "val"; v.textContent = value || "(missing)";
+    var b = document.createElement("button"); b.textContent = "Copy";
+    b.addEventListener("click", function () {
+      navigator.clipboard.writeText(value || "").then(function () {
+        b.textContent = "Copied";
+        setTimeout(function () { b.textContent = "Copy"; }, 1500);
+      });
+    });
+    wrap.appendChild(l); wrap.appendChild(v); wrap.appendChild(b);
+    fields.appendChild(wrap);
+  }
+
+  if (error) {
+    status.textContent = "Intuit returned an error.";
+    renderRow("Error", error, true);
+    renderRow("Description", errorDescription || "(none)", true);
+    cmd.textContent = "# Authorization failed — no command to run.";
+    return;
+  }
+
+  if (!code || !realmId) {
+    status.textContent = "Missing code or realmId in the callback URL.";
+    renderRow("Raw query", window.location.search || "(empty)", true);
+    cmd.textContent = "# Nothing to exchange.";
+    return;
+  }
+
+  status.textContent = "Copy the command below and run it in your terminal.";
+  renderRow("Authorization Code", code);
+  renderRow("Realm ID", realmId);
+  renderRow("State", state || "(none)");
+
+  var command =
+    'cd C:\\Users\\egber\\qbo\n' +
+    'python qbo_exchange.py --name "YOUR_LABEL" --code "' + code + '" --realm-id "' + realmId + '" --env production';
+  cmd.textContent = command;
+})();
+</script>
+
+</body>
+</html>
